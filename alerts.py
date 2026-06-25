@@ -16,5 +16,4 @@ def show_connecting_dialog(err: str, out: str):
         on_dismiss=lambda e: print("SHOW_CONNECTING_DIALOG_DEBUG: Dialog dismissed!"),
         title_padding=ft.Padding.all(25),
     )
-    print("Вызвана")
     return DIALOG
