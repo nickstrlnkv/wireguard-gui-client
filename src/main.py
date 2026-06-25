@@ -3,10 +3,7 @@ import os
 import shutil
 import asyncio
 
-
-import settings
-import alerts
-
+import settings, alerts
 
 # directory path for .conf files
 CONFS_DIR = os.path.join(os.path.dirname(__file__), "confs")
@@ -32,14 +29,16 @@ async def run_wg(action: str, config_path : str):
     return proc.returncode, stdout.decode().strip(), stderr.decode().strip(),
 
 
+
 def main(page: ft.Page):
     page.title = settings.PAGE_TITLE
+    page.window.resizable = settings.PAGE_WINDOW_RESIZABLE
     page.window.height = settings.PAGE_WINDOW_HEIGHT
     page.window.width = settings.PAGE_WINDOW_WIDTH
     page.bgcolor = settings.WINDOW_BACKGROUND_COLOR
-    page.window.resizable = settings.PAGE_WINDOW_RESIZABLE
+
     page.theme_mode = ft.ThemeMode.LIGHT
-    page.window.icon = "./assets/icon.png"
+    page.window.icon = "assets/icon.png"
 
     is_connected = False
     active_config_path = None # current .conf file path
@@ -222,6 +221,9 @@ def main(page: ft.Page):
 
         )
     )
+    print(page.window.height)
+    print(page.window.width)
+
 
 
 #ft.app(target=main)
