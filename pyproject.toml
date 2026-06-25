@@ -1,0 +1,29 @@
+[project]
+name = "wireguard-gui-client"
+version = "0.1.0"
+description = ""
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Nikita Strelnikov", email = "naastrelnikov@gmail.com" }
+]
+dependencies = [
+    "flet>=0.85.3"
+]
+
+[dependency-groups]
+dev = [
+    "flet-cli>=0.85.3",
+    "flet-desktop>=0.85.3",
+    "flet-web>=0.85.3",
+]
+
+[tool.flet]
+desktop_flavor = "light"    # Change to "full" to use flet-audio and flet-video
+org = "com.mycompany"
+product = "wireguard-gui-client"
+company = "Flet"
+copyright = "Copyright (C) 2023-2026 by Flet"
+
+[tool.flet.app]
+path = "src"
