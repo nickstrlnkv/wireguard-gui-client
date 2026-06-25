@@ -1,7 +1,12 @@
+import flet as ft
 import os
 import shutil
-import flet as ft
+import asyncio
+
+
 import settings
+import alerts
+
 
 # directory path for .conf files
 CONFS_DIR = os.path.join(os.path.dirname(__file__), "confs")
@@ -9,13 +14,23 @@ CONFS_DIR = os.path.join(os.path.dirname(__file__), "confs")
 # creating confs/ directory if not exists
 os.makedirs(CONFS_DIR, exist_ok=True)
 
-dialog = ft.AlertDialog(
-                title=ft.Text("Error. No file selected"),
-                content=ft.Text("Please choose or add .conf file in dropdown list"),
-                alignment=ft.Alignment.CENTER,
-                on_dismiss=lambda e: print("Dialog dismissed!"),
-                title_padding=ft.Padding.all(25),
-            )
+
+
+# wg-quick need root access -> launching through pkexec (graphic)
+WG_QUICK = shutil.which("wg-quick") or "/usr/bin/wg-quick"
+PKEXEC = shutil.which("pkexec") or "/usr/bin/pkexec"
+
+
+async def run_wg(action: str, config_path : str):
+    # launching wg-quick up/down <config_path> or root through pkexec
+    proc = await asyncio.create_subprocess_exec(
+        PKEXEC, WG_QUICK, action, config_path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
+    return proc.returncode, stdout.decode().strip(), stderr.decode().strip(),
+
 
 def main(page: ft.Page):
     page.title = settings.PAGE_TITLE
@@ -23,8 +38,11 @@ def main(page: ft.Page):
     page.window.width = settings.PAGE_WINDOW_WIDTH
     page.bgcolor = settings.WINDOW_BACKGROUND_COLOR
     page.window.resizable = settings.PAGE_WINDOW_RESIZABLE
+    page.theme_mode = ft.ThemeMode.LIGHT
+    page.window.icon = "./assets/icon.png"
 
     is_connected = False
+    active_config_path = None # current .conf file path
 
     # func for getting list of configs
     def get_saved_configs():
@@ -44,21 +62,74 @@ def main(page: ft.Page):
     file_picker = ft.FilePicker()
     page.services.append(file_picker)
 
-    # connect / disable logic button
-    def on_connect_click(e):
-        nonlocal is_connected
-        selected_config = config_dropdown.value
+    def set_connected_ui(name: str):
+        status_text.value = f"Connected: {name}"
+        status_text.color = ft.Colors.GREEN_ACCENT
+        status_icon.name = ft.Icons.SHIELD_ROUNDED
+        status_icon.color = ft.Colors.GREEN_ACCENT
+        connect_button.content = ft.Text("Disconnect")
+        connect_button.bgcolor = ft.Colors.RED_600
+        config_dropdown.disabled = True
 
+    def set_disconnected_ui():
+        status_text.value = "Disconnected"
+        status_text.color = ft.Colors.RED_ACCENT
+        status_icon.name = ft.Icons.SHIELD_OUTLINED
+        status_icon.color = ft.Colors.RED_ACCENT
+        connect_button.content = ft.Text("Connect")
+        connect_button.bgcolor = ft.Colors.BLUE_600
+        config_dropdown.disabled = False
+
+
+    # connect / disable logic button
+    async def on_connect_click(e):
+        nonlocal is_connected, active_config_path
+        selected_config = config_dropdown.value
 
         # if vpn is disabled and user doesn't choose config -> show alert
         if not selected_config and not is_connected:
-            dialog.open = True
+            alerts.DIALOG.open = True
             page.update()
             return
 
-        is_connected = not is_connected
+        # block button while up/down
+        connect_button.disabled = True
+        connect_button.content = ft.Text("Disabling…" if is_connected else "Connecting…")
+        page.update()
 
-        if is_connected:
+        try:
+            if not is_connected:
+                config_path = os.path.join(CONFS_DIR, selected_config)
+                code, out, err = await run_wg("up", config_path)
+                if code != 0:
+
+                    # TODO: FIX THIS (dialog is not showing)
+                    if err == "Not authorized":
+                        dialog = alerts.show_connecting_dialog(err, out)
+                        dialog.open = True
+                        page.update()
+                    set_disconnected_ui()
+                    print(f"Connecting error: {err or out}")
+                    return
+                is_connected = True
+                active_config_path = config_path
+                set_connected_ui(selected_config)
+            else:
+                code, out, err = await run_wg("down", active_config_path)
+                if code != 0:
+                    set_connected_ui(os.path.basename(active_config_path))
+                    # dialog error
+                    print(f"Disconnecting error: {err or out}")
+                    return
+                is_connected = False
+                active_config_path = None
+                set_disconnected_ui()
+        finally:
+            connect_button.disabled = False
+            page.update()
+
+
+        """if is_connected:
             config_path = os.path.join(CONFS_DIR, selected_config)
 
             # TODO: CLI-call: wg-quick up {file_path}
@@ -83,7 +154,7 @@ def main(page: ft.Page):
             connect_button.bgcolor = ft.Colors.BLUE_600
             config_dropdown.disabled = False
 
-        page.update()
+        page.update()"""
 
     # event handler for "+" button
     async def add_config_click(e):
@@ -141,7 +212,7 @@ def main(page: ft.Page):
                     status_text,
                     ft.Divider(height=30, color=ft.Colors.TRANSPARENT),
                     connect_button,
-                    dialog
+                    alerts.DIALOG
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 alignment=ft.MainAxisAlignment.CENTER,
@@ -153,4 +224,5 @@ def main(page: ft.Page):
     )
 
 
-ft.app(target=main)
+#ft.app(target=main)
+ft.run(main, assets_dir="assets")
