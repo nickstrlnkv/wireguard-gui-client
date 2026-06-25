@@ -9,6 +9,13 @@ CONFS_DIR = os.path.join(os.path.dirname(__file__), "confs")
 # creating confs/ directory if not exists
 os.makedirs(CONFS_DIR, exist_ok=True)
 
+dialog = ft.AlertDialog(
+                title=ft.Text("Error. No file selected"),
+                content=ft.Text("Please choose or add .conf file in dropdown list"),
+                alignment=ft.Alignment.CENTER,
+                on_dismiss=lambda e: print("Dialog dismissed!"),
+                title_padding=ft.Padding.all(25),
+            )
 
 def main(page: ft.Page):
     page.title = settings.PAGE_TITLE
@@ -24,7 +31,7 @@ def main(page: ft.Page):
         return [f for f in os.listdir(CONFS_DIR) if f.endswith(".conf")]
 
     # status elements interface
-    status_text = ft.Text("Отключено", size=20, color=ft.Colors.RED_ACCENT)
+    status_text = ft.Text("Disabled", size=20, color=ft.Colors.RED_ACCENT)
     status_icon = ft.Icon(ft.Icons.SHIELD_OUTLINED, color=ft.Colors.RED_ACCENT, size=50)
 
     # dropdown list for choosing configuration
@@ -42,9 +49,11 @@ def main(page: ft.Page):
         nonlocal is_connected
         selected_config = config_dropdown.value
 
+
         # if vpn is disabled and user doesn't choose config -> show alert
         if not selected_config and not is_connected:
-            page.open(ft.SnackBar(ft.Text("Choose .conf file from list")))
+            dialog.open = True
+            page.update()
             return
 
         is_connected = not is_connected
@@ -132,12 +141,14 @@ def main(page: ft.Page):
                     status_text,
                     ft.Divider(height=30, color=ft.Colors.TRANSPARENT),
                     connect_button,
+                    dialog
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 alignment=ft.MainAxisAlignment.CENTER,
             ),
             alignment=ft.Alignment.CENTER,
             expand=True,
+
         )
     )
 
