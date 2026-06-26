@@ -90,6 +90,58 @@ or with Flet's hot reload during development :)
 flet run src/main.py
 ```
 
+## Using AppImage package
+Prebuilt AppImages are published on the
+[**Releases**](https://github.com/nickstrlnkv/wireguard-gui-client/releases)
+page. An AppImage is a single self-contained file — no installation needed, just
+download, make it executable, and run.
+
+### 1. Install the required system dependencies first
+ 
+> ⚠️ The AppImage bundles **only the application and its libraries**. It does
+> **not** — and cannot — embed `pkexec` and `wg-quick`: these are system tools
+> that run with system privileges and integrate with the host's PolicyKit and
+> networking stack. You must install them yourself before running the app.
+ 
+```bash
+# Debian / Ubuntu
+sudo apt install wireguard-tools policykit-1
+ 
+# Fedora / RHEL
+sudo dnf install wireguard-tools polkit
+ 
+# Arch
+sudo pacman -S wireguard-tools polkit
+```
+ 
+If `wg-quick` or `pkexec` is missing, the app still starts but connecting will
+fail (e.g. `wg-quick: command not found` or `pkexec: command not found`).
+ 
+### 2. Download the AppImage
+ 
+Go to the [Releases](https://github.com/<your-username>/wireguard-gui-client/releases)
+tab, open the latest release, and download the
+`WireGuard-GUI-Client-x86_64.AppImage` file from its **Assets**.
+ 
+Or grab the latest release from the command line:
+ 
+```bash
+curl -L -o WireGuard-GUI-Client-x86_64.AppImage \
+  https://github.com/nickstrlnkv/wireguard-gui-client/releases/latest/download/WireGuard-GUI-Client-x86_64.AppImage
+```
+ 
+### 3. Make it executable and run
+ 
+```bash
+chmod +x WireGuard-GUI-Client-x86_64.AppImage
+./WireGuard-GUI-Client-x86_64.AppImage
+```
+ 
+> If you get a FUSE error on a minimal system, install FUSE
+> (`sudo apt install libfuse2` on Debian/Ubuntu) or run with
+> `./WireGuard-GUI-Client-x86_64.AppImage --appimage-extract-and-run`.
+
+
 ## Project structure
  
 ```
@@ -133,7 +185,6 @@ runs a tool that requires **root privileges**. Please keep the following in mind
   `/etc/polkit-1/rules.d/`) or a `sudoers` entry limited to `wg-quick` only.
   Grant the minimum necessary — never make `wg-quick` blanket-passwordless for
   all users.
- 
 
 ## Contributing
  
