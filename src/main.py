@@ -12,10 +12,10 @@ CONFS_DIR = os.path.join(os.path.dirname(__file__), "confs")
 os.makedirs(CONFS_DIR, exist_ok=True)
 
 
-
 # wg-quick need root access -> launching through pkexec (graphic)
 WG_QUICK = shutil.which("wg-quick") or "/usr/bin/wg-quick"
 PKEXEC = shutil.which("pkexec") or "/usr/bin/pkexec"
+
 
 
 async def run_wg(action: str, config_path : str):
@@ -36,9 +36,52 @@ def main(page: ft.Page):
     page.window.height = settings.PAGE_WINDOW_HEIGHT
     page.window.width = settings.PAGE_WINDOW_WIDTH
     page.bgcolor = settings.WINDOW_BACKGROUND_COLOR
+    page.window.title_bar_buttons_hidden = True
+    page.window.title_bar_hidden = True
 
     page.theme_mode = ft.ThemeMode.LIGHT
     page.window.icon = "assets/icon.png"
+
+    # close window event handler
+    async def close_window(e):
+        await page.window.close()
+
+    async def window_minimized(e):
+        page.window.minimized = True
+
+    # custom bar buttons
+    title_bar = ft.WindowDragArea(
+        expand=True,
+        height=40,
+        content=ft.Row(
+            controls=[
+                ft.Text(settings.PAGE_TITLE, expand=True),
+
+                ft.IconButton(
+                    icon=ft.Icons.REMOVE,
+                    on_click=window_minimized
+                ),
+
+                ft.IconButton(
+                    icon=ft.Icons.CHECK_BOX_OUTLINE_BLANK,
+                    on_click=lambda e: setattr(
+                        page.window,
+                        "maximized",
+                        not page.window.maximized
+                    )
+                ),
+
+                ft.IconButton(
+                    icon=ft.Icons.CLOSE,
+                    on_click=close_window
+                )
+
+
+            ]
+        )
+    )
+
+
 
     is_connected = False
     active_config_path = None # current .conf file path
@@ -127,34 +170,6 @@ def main(page: ft.Page):
             connect_button.disabled = False
             page.update()
 
-
-        """if is_connected:
-            config_path = os.path.join(CONFS_DIR, selected_config)
-
-            # TODO: CLI-call: wg-quick up {file_path}
-            print(f"Launching Wireguard with config: {config_path}")
-
-            status_text.value = f"Connected: {selected_config}"
-            status_text.color = ft.Colors.GREEN_ACCENT
-            status_icon.name = ft.Icons.SHIELD_ROUNDED
-            status_icon.color = ft.Colors.GREEN_ACCENT
-            connect_button.content = ft.Text("Disable")
-            connect_button.bgcolor = ft.Colors.RED_600
-            config_dropdown.disabled = True
-        else:
-            # TODO: CLI-call: wg-quick down {config_path}
-            print("Disabling WireGuard")
-
-            status_text.value = "Disabled"
-            status_text.color = ft.Colors.RED_ACCENT
-            status_icon.name = ft.Icons.SHIELD_OUTLINED
-            status_icon.color = ft.Colors.RED_ACCENT
-            connect_button.content = ft.Text("Connect")
-            connect_button.bgcolor = ft.Colors.BLUE_600
-            config_dropdown.disabled = False
-
-        page.update()"""
-
     # event handler for "+" button
     async def add_config_click(e):
 
@@ -203,6 +218,13 @@ def main(page: ft.Page):
         ft.Container(
             content=ft.Column(
                 controls=[
+                    title_bar,
+                ]
+            )
+        ),
+        ft.Container(
+            content=ft.Column(
+                controls=[
                     ft.Text("Wireguard Client", size=24, weight=ft.FontWeight.BOLD),
                     ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
                     config_selection_row,
@@ -219,11 +241,9 @@ def main(page: ft.Page):
             alignment=ft.Alignment.CENTER,
             expand=True,
 
-        )
-    )
-    print(page.window.height)
-    print(page.window.width)
+        ),
 
+    )
 
 
 #ft.app(target=main)
