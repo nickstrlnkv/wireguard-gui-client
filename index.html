@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WireGuard GUI Client for Linux</title>
+<meta name="description" content="A simple, beautiful desktop GUI for managing WireGuard VPN connections on Linux, built with Flet." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --bg-2: #111726;
+    --card: #161d2e;
+    --border: #243049;
+    --text: #e6ecf5;
+    --muted: #93a1bd;
+    --brand: #3b82f6;
+    --brand-2: #22d3ee;
+    --accent: #ef4444;
+    --green: #22c55e;
+    --radius: 16px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  code, .mono { font-family: 'JetBrains Mono', monospace; }
+
+  a { color: inherit; text-decoration: none; }
+
+  .container { width: min(1100px, 92%); margin: 0 auto; }
+
+  /* ---------- Animated background ---------- */
+  .bg-orbs { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.55;
+    animation: float 18s ease-in-out infinite;
+  }
+  .orb.a { width: 480px; height: 480px; background: #1d4ed8; top: -120px; left: -100px; }
+  .orb.b { width: 420px; height: 420px; background: #0e7490; bottom: -140px; right: -80px; animation-delay: -6s; }
+  .orb.c { width: 360px; height: 360px; background: #7c3aed; top: 40%; left: 55%; animation-delay: -11s; opacity: 0.35; }
+
+  @keyframes float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(40px, -30px) scale(1.1); }
+  }
+
+  /* ---------- Navbar ---------- */
+  header.nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(12px);
+    background: rgba(11, 15, 26, 0.6);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -0.02em; }
+  .logo .shield {
+    width: 26px; height: 26px;
+    color: var(--brand-2);
+    animation: pulse 3s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(34,211,238,0)); }
+    50% { transform: scale(1.08); filter: drop-shadow(0 0 8px rgba(34,211,238,0.6)); }
+  }
+  .nav-links { display: flex; gap: 26px; align-items: center; }
+  .nav-links a { color: var(--muted); font-weight: 500; transition: color .2s; }
+  .nav-links a:hover { color: var(--text); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 10px; font-weight: 600;
+    background: linear-gradient(135deg, var(--brand), var(--brand-2));
+    color: #04111f; transition: transform .15s ease, box-shadow .2s ease;
+    box-shadow: 0 6px 20px rgba(59,130,246,0.35);
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(59,130,246,0.5); }
+  .btn.secondary {
+    background: transparent; color: var(--text);
+    border: 1px solid var(--border); box-shadow: none;
+  }
+  .btn.secondary:hover { border-color: var(--brand); }
+
+  @media (max-width: 720px) { .nav-links a:not(.btn) { display: none; } }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: 90px 0 70px; text-align: center; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--bg-2);
+    color: var(--muted); font-size: 13px; font-weight: 500; margin-bottom: 26px;
+  }
+  .badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); animation: blink 2s infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+  .hero h1 {
+    font-size: clamp(2.4rem, 6vw, 4rem);
+    font-weight: 800; letter-spacing: -0.03em; line-height: 1.05;
+    background: linear-gradient(135deg, #fff 30%, var(--brand-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p.sub {
+    margin: 22px auto 0; max-width: 640px; color: var(--muted); font-size: 1.15rem;
+  }
+  .hero-actions { margin-top: 36px; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+  /* ---------- Reveal animation ---------- */
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s ease, transform .7s ease; }
+  .reveal.visible { opacity: 1; transform: none; }
+
+  /* ---------- Sections ---------- */
+  section { padding: 64px 0; }
+  .section-title { text-align: center; margin-bottom: 44px; }
+  .section-title h2 { font-size: clamp(1.8rem, 4vw, 2.4rem); font-weight: 800; letter-spacing: -0.02em; }
+  .section-title p { color: var(--muted); margin-top: 10px; }
+
+  /* Features */
+  .grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+  .card {
+    background: linear-gradient(180deg, var(--card), var(--bg-2));
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 26px; transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+  }
+  .card:hover { transform: translateY(-6px); border-color: var(--brand); box-shadow: 0 16px 40px rgba(0,0,0,0.4); }
+  .card .ic {
+    width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center;
+    background: rgba(59,130,246,0.12); color: var(--brand-2); margin-bottom: 16px;
+  }
+  .card h3 { font-size: 1.1rem; margin-bottom: 8px; }
+  .card p { color: var(--muted); font-size: 0.96rem; }
+
+  /* Screenshot */
+  .shot-frame {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-2); overflow: hidden; max-width: 760px; margin: 0 auto;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  }
+  .shot-bar { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--card); }
+  .shot-bar span { width: 12px; height: 12px; border-radius: 50%; }
+  .shot-bar .r { background: #ff5f56; } .shot-bar .y { background: #ffbd2e; } .shot-bar .g { background: #27c93f; }
+  .shot-body { padding: 0; }
+  .shot-body img { display: block; width: 100%; height: auto; }
+  .shot-placeholder {
+    aspect-ratio: 16 / 10; display: grid; place-items: center; text-align: center;
+    color: var(--muted); padding: 30px;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(59,130,246,.15), transparent 60%),
+      radial-gradient(circle at 70% 70%, rgba(34,211,238,.12), transparent 60%);
+  }
+  .shot-placeholder .hint { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; margin-top: 10px; opacity: .8; }
+
+  /* Tech */
+  .tech-list { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--bg-2); font-weight: 500; transition: transform .2s, border-color .2s;
+  }
+  .pill:hover { transform: translateY(-3px); border-color: var(--brand-2); }
+  .pill .tag { color: var(--muted); font-size: 0.85rem; }
+
+  /* Code blocks */
+  .steps { display: grid; gap: 18px; max-width: 760px; margin: 0 auto; }
+  .step { display: flex; gap: 18px; align-items: flex-start; }
+  .step .num {
+    flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%;
+    display: grid; place-items: center; font-weight: 700; font-size: 0.9rem;
+    background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #04111f;
+  }
+  .step .body { flex: 1; }
+  .step h4 { margin-bottom: 8px; font-size: 1.02rem; }
+  pre {
+    background: #0a0e18; border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; overflow-x: auto; font-size: 0.88rem; color: #d6e2f5;
+  }
+  pre code { color: inherit; }
+  .cmt { color: #5c6b86; }
+  .tok { color: var(--brand-2); }
+
+  /* License */
+  .license-card { max-width: 680px; margin: 0 auto; text-align: center; }
+  .license-card .big { font-size: 2rem; font-weight: 800; color: var(--brand-2); }
+
+  /* Footer */
+  footer { border-top: 1px solid var(--border); padding: 40px 0; text-align: center; color: var(--muted); }
+  footer a { color: var(--brand-2); }
+
+  .note {
+    margin-top: 18px; padding: 14px 18px; border-radius: 12px;
+    border: 1px solid rgba(239,68,68,0.35); background: rgba(239,68,68,0.08);
+    color: #fca5a5; font-size: 0.92rem; max-width: 760px; margin-inline: auto;
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-orbs" aria-hidden="true">
+  <div class="orb a"></div>
+  <div class="orb b"></div>
+  <div class="orb c"></div>
+</div>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <div class="logo">
+      <svg class="shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+      WireGuard GUI
+    </div>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#screenshot">Screenshot</a>
+      <a href="#tech">Tech</a>
+      <a href="#install">Install</a>
+      <a href="#license">License</a>
+      <a class="btn secondary" href="https://github.com/nickstrlnkv/wireguard-gui-client" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.4-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17 4.7 18 5 18 5c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A11.5 11.5 0 0 0 23.5 12C23.5 5.7 18.3.5 12 .5z"/></svg>
+        GitHub
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero container">
+    <div class="badge"><span class="dot"></span> Open-source · Linux desktop</div>
+    <h1>WireGuard GUI Client<br/>for Linux</h1>
+    <p class="sub">A clean, lightweight desktop app to import your <code>.conf</code> files and bring your WireGuard VPN tunnel up or down with a single click. Built with Python &amp; Flet.</p>
+    <div class="hero-actions">
+      <a class="btn" href="#install">Get started</a>
+      <a class="btn secondary" href="https://github.com/your-username/wireguard-gui-client" target="_blank" rel="noopener">View on GitHub</a>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features" class="container">
+    <div class="section-title reveal">
+      <h2>Features</h2>
+      <p>Everything you need to manage a tunnel — nothing you don't.</p>
+    </div>
+    <div class="grid">
+      <div class="card reveal">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>
+        <h3>Import configs</h3>
+        <p>Pick any WireGuard <code>.conf</code> through a native file dialog; it's saved locally for quick access.</p>
+      </div>
+      <div class="card reveal">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+        <h3>One-click connect</h3>
+        <p>Connect and disconnect from a dropdown with live status feedback — connected or disconnected at a glance.</p>
+      </div>
+      <div class="card reveal">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <h3>Secure by design</h3>
+        <p>Privileged <code>wg-quick</code> calls run through <code>pkexec</code>; the GUI itself never runs as root.</p>
+      </div>
+      <div class="card reveal">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></svg></div>
+        <h3>Native &amp; cross-distro</h3>
+        <p>A real desktop window powered by Flet/Flutter. Runs on Fedora, Ubuntu, Arch and more.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREENSHOT -->
+  <section id="screenshot" class="container">
+    <div class="section-title reveal">
+      <h2>See it in action</h2>
+      <p>The whole app fits in one tidy window.</p>
+    </div>
+    <div class="shot-frame reveal">
+      <div class="shot-bar"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+      <div class="shot-body">
+        <!-- Replace the placeholder below with your screenshot:
+             <img src="docs/screenshot.png" alt="WireGuard GUI Client interface" /> -->
+        <div class="shot-placeholder">
+          <div>
+            <img src="docs/screenshot.png">
+            <!-- <div class="hint">&lt;img src="docs/screenshot.png" alt="App screenshot" /&gt;</div> -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TECH -->
+  <section id="tech" class="container">
+    <div class="section-title reveal">
+      <h2>Built with</h2>
+      <p>A tiny stack — one Python dependency plus standard Linux VPN tooling.</p>
+    </div>
+    <div class="tech-list reveal">
+      <span class="pill">🐍 Python <span class="tag">3.10+</span></span>
+      <span class="pill">🦋 Flet <span class="tag">GUI framework</span></span>
+      <span class="pill">🔐 wireguard-tools <span class="tag">wg-quick / wg</span></span>
+      <span class="pill">🛡️ polkit <span class="tag">pkexec</span></span>
+      <span class="pill">⚡ asyncio <span class="tag">async subprocess</span></span>
+    </div>
+  </section>
+
+  <!-- INSTALL -->
+  <section id="install" class="container">
+    <div class="section-title reveal">
+      <h2>Deploy &amp; run</h2>
+      <p>Up and running in under a minute.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="num">1</div>
+        <div class="body">
+          <h4>Install system dependencies</h4>
+          <pre><code><span class="cmt"># Fedora / RHEL</span>
+sudo dnf install wireguard-tools polkit
+
+<span class="cmt"># Debian / Ubuntu</span>
+sudo apt install wireguard-tools policykit-1
+
+<span class="cmt"># Arch</span>
+sudo pacman -S wireguard-tools polkit</code></pre>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="num">2</div>
+        <div class="body">
+          <h4>Clone the repository</h4>
+          <pre><code>git clone https://github.com/your-username/wireguard-gui-client.git
+cd wireguard-gui-client</code></pre>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="num">3</div>
+        <div class="body">
+          <h4>Create a virtual environment &amp; install</h4>
+          <pre><code>python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt   <span class="cmt"># or: pip install flet</span></code></pre>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="num">4</div>
+        <div class="body">
+          <h4>Run the app</h4>
+          <pre><code>python src/main.py            <span class="cmt"># or: flet run src/main.py</span></code></pre>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="num">5</div>
+        <div class="body">
+          <h4>Build a standalone bundle <span class="tag mono">(optional)</span></h4>
+          <pre><code>flet build linux              <span class="cmt"># output in build/linux/</span></code></pre>
+        </div>
+      </div>
+    </div>
+    <p class="note reveal">⚠️ Security: WireGuard <code>.conf</code> files contain private keys. Keep them at <code>chmod 600</code>, never commit them to git, and never run the whole GUI with <code>sudo</code> — only <code>wg-quick</code> is elevated via <code>pkexec</code>.</p>
+  </section>
+
+  <!-- LICENSE -->
+  <section id="license" class="container">
+    <div class="section-title reveal">
+      <h2>License</h2>
+    </div>
+    <div class="card license-card reveal">
+      <div class="big">MIT</div>
+      <p style="margin-top:10px;">Released under the MIT License — free to use, modify and distribute. See the <code>LICENSE</code> file in the repository for the full text.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    <p>Built with ❤️ using <a href="https://flet.dev/" target="_blank" rel="noopener">Flet</a> and <a href="https://www.wireguard.com/" target="_blank" rel="noopener">WireGuard</a>.</p>
+    <p style="margin-top:8px; font-size:0.88rem;">© <span id="year"></span> WireGuard GUI Client · <a href="https://github.com/nickstrlnkv/wireguard-gui-client" target="_blank" rel="noopener">GitHub</a></p>
+  </div>
+</footer>
+
+<script>
+  // current year
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // scroll reveal
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  document.querySelectorAll('.reveal').forEach((el, i) => {
+    el.style.transitionDelay = (i % 4) * 80 + 'ms';
+    io.observe(el);
+  });
+</script>
+</body>
+</html>
